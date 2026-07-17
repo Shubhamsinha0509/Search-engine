@@ -1,52 +1,57 @@
+// npm install axios cheerio
 import axios from "axios";
-import cheerio from "cheerio"
+import * as cheerio from "cheerio";
 
+// specify the URL of the site to crawl
+const targetUrl = "https://quotes.toscrape.com/";
 
-// Specify URl of the site to crawl
-const targetUrl = 'https://www.scrapingcourse.com/ecommerce/';
+// add the target URL to an array of URLs to visit
+let urlsToVisit = [targetUrl];
 
-
-// add the target url to an array of urlsToVisit
-let urlsToVisit = [targetUrl]
-
+// define the desired crawl limit
+const maxCrawlLength = 20;
 
 // define a crawler function
+const crawler = async () => {
+    // track the number of crawled URLs
+    let crawledCount = 0;
 
-const crawler = async ()=>{
+    for (; urlsToVisit.length > 0 && crawledCount <= maxCrawlLength;) {
+        // get the next URL from the list
+        const currentUrl = urlsToVisit.shift();
+        // increment the crawl count
+        crawledCount++;
 
-    // Modify the crawler function to start a for loop that
-    // runs continuously if the urlsToVisit array isn't empty
+        try {
+            // request the target website
+            const response = await axios.get(currentUrl);
+            // parse the website's HTML
+            const $ = cheerio.load(response.data);
 
-    for(;urlsVisit.length > 0;)
-        // get the next URl from the list 
-    const currentUrl = urlsVisit.shift()
+            // find all links on the page
+            const linkElements = $('a[href]');
+            linkElements.each((index, element) => {
+                let url = $(element).attr('href');
 
+                // check if the URL is a full link or a relative path
+                if (!url.startsWith('http')) {
+                    // remove leading slash if present
+                    url = targetUrl + url.replace(/^\//, '');
+                }
 
-    try {
-        // request the target website
-        const response = await axios.get(targetUrl)
-
-        // parse the website's HTML
-        const $ = cheerio.load(response.data)
-
-        // find all links from the page
-        const linkElements = $('a[href]')
-        linkElements.each((index,element)=>{
-            let url = $(element).attr('href')
-        })
-
-        // check if the URl is a full link or a relative path
-        if(!url.startWith('http')){
-            // remove leading slash if present
-            url = targetUrl + url.replace(/^\//,'')
+                // follow links within the target website
+                if (url.startsWith(targetUrl) && !urlsToVisit.includes(url)) {
+                    // update the URLs to visit
+                    urlsToVisit.push(url);
+                }
+            });
+        } catch (error) {
+            // handle any error that occurs during the HTTP request
+            console.error(`Error fetching ${currentUrl}: ${error.message}`);
         }
-
-        // follow the link within the target website
-        if(url.startWith(targetUrl) && !urlsToVisit.includes(url)){
-            // update the urls to visit
-            urlsToVisit.push(url);
-        }
-    } catch (error) {
-        console.error(`Error fetching ${targetUrl} : ${error.message}`)
     }
-}
+    console.log(urlsToVisit);
+};
+
+// execute the crawler function
+crawler();
